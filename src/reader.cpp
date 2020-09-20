@@ -1270,6 +1270,7 @@ static bool command_ends_paging(readline_cmd_t c, bool focused_on_search_field) 
         case rl::backward_word:
         case rl::forward_bigword:
         case rl::backward_bigword:
+        case rl::forward_dir:
         case rl::delete_char:
         case rl::backward_delete_char:
         case rl::kill_line:
@@ -1723,6 +1724,11 @@ void reader_data_t::update_autosuggestion() {
 // Accept any autosuggestion by replacing the command line with it. If full is true, take the whole
 // thing; if it's false, then respect the passed in style.
 void reader_data_t::accept_autosuggestion(bool full, move_word_style_t style) {
+    bool include_slash = false;
+    if (style == move_word_style_dir) {
+        include_slash = true;
+        style = move_word_style_punctuation;
+    }
     if (!autosuggestion.empty()) {
         // Accepting an autosuggestion clears the pager.
         clear_pager();
@@ -1741,6 +1747,9 @@ void reader_data_t::accept_autosuggestion(bool full, move_word_style_t style) {
             for (want = command_line.size(); want < autosuggestion.size(); want++) {
                 wchar_t wc = autosuggestion.at(want);
                 if (!state.consume_char(wc)) break;
+            }
+            if (include_slash && want < autosuggestion.size()) {
+                if (autosuggestion.at(want) == L'/') ++want;
             }
             size_t have = command_line.size();
             replace_substring(&command_line, command_line.size(), 0,
@@ -2275,6 +2284,12 @@ void reader_data_t::move_word(editable_line_t *el, bool move_right, bool erase,
     const size_t boundary = move_right ? el->size() : 0;
     if (el->position() == boundary) return;
 
+    bool include_slash = false;
+    if (style == move_word_style_dir) {
+        include_slash = true;
+        style = move_word_style_punctuation;
+    }
+
     // When moving left, a value of 1 means the character at index 0.
     move_word_state_machine_t state(style);
     const wchar_t *const command_line = el->text().c_str();
@@ -2286,6 +2301,10 @@ void reader_data_t::move_word(editable_line_t *el, bool move_right, bool erase,
         wchar_t c = command_line[idx];
         if (!state.consume_char(c)) break;
         buff_pos = (move_right ? buff_pos + 1 : buff_pos - 1);
+    }
+
+    if (include_slash && move_right && buff_pos != boundary) {
+        if (command_line[buff_pos] == L'/') ++buff_pos;
     }
 
     // Always consume at least one character.
@@ -3331,6 +3350,16 @@ void reader_data_t::handle_readline_command(readline_cmd_t c, readline_loop_stat
         case rl::forward_bigword: {
             auto move_style =
                 (c == rl::forward_word) ? move_word_style_punctuation : move_word_style_whitespace;
+            editable_line_t *el = active_edit_line();
+            if (el->position() < el->size()) {
+                move_word(el, MOVE_DIR_RIGHT, false /* do not erase */, move_style, false);
+            } else {
+                accept_autosuggestion(false, move_style);
+            }
+            break;
+        }
+        case rl::forward_dir: {
+            auto move_style = move_word_style_dir;
             editable_line_t *el = active_edit_line();
             if (el->position() < el->size()) {
                 move_word(el, MOVE_DIR_RIGHT, false /* do not erase */, move_style, false);

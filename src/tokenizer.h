@@ -193,7 +193,8 @@ struct pipe_or_redir_t {
 enum move_word_style_t {
     move_word_style_punctuation,      // stop at punctuation
     move_word_style_path_components,  // stops at path components
-    move_word_style_whitespace        // stops at whitespace
+    move_word_style_whitespace,       // stops at whitespace
+    move_word_style_dir               // stop at punctuation except trailing slash
 };
 
 /// Our state machine that implements "one word" movement or erasure.
