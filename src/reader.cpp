@@ -1137,11 +1137,11 @@ void reader_data_t::paint_layout(const wchar_t *reason) {
     // Copy the colors and extend them with autosuggestion color.
     std::vector<highlight_spec_t> colors = data.colors;
 
+    const wcstring &needle = history_search.search_string();
+
     // Highlight any history search.
-    if (!conf.in_silent_mode && !data.history_search_text.empty()) {
-        const wcstring &needle = data.history_search_text;
-        const wcstring &haystack = cmd_line->text();
-        size_t match_pos = ifind(haystack, needle);
+    if (!conf.in_silent_mode && !needle.empty()) {
+        size_t match_pos = history_search.match_position();
         if (match_pos != wcstring::npos) {
             for (size_t i = 0; i < needle.size(); i++) {
                 colors.at(match_pos + i).background = highlight_role_t::search_match;
